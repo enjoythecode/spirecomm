@@ -4,6 +4,8 @@ import threading
 import json
 import collections
 
+import logging
+
 from spirecomm.spire.game import Game
 from spirecomm.spire.screen import ScreenType
 from spirecomm.communication.action import Action, StartGameAction
@@ -86,6 +88,7 @@ class Coordinator:
         :type action: Action
         :return: None
         """
+        assert action is not None
         self.action_queue.append(action)
 
     def clear_actions(self):
@@ -160,21 +163,37 @@ class Coordinator:
         """
         message = self.get_next_raw_message(block)
         if message is not None:
+            logging.debug("1 expecting message to be not empty")
             communication_state = json.loads(message)
+            logging.debug(f"1.1 the json message is {message}")
+            logging.debug(f"1.2 the parsed python object is {communication_state}")
             self.last_error = communication_state.get("error", None)
             self.game_is_ready = communication_state.get("ready_for_command")
+            logging.debug(f"1.3 last_error? {self.last_error}")
+            logging.debug(f"1.4 game is ready? {self.game_is_ready}")
             if self.last_error is None:
+                logging.debug("2 last error is none!")
                 self.in_game = communication_state.get("in_game")
                 if self.in_game:
+                    logging.debug("2.1 we are in game")
                     self.last_game_state = Game.from_json(communication_state.get("game_state"), communication_state.get("available_commands"))
-            if perform_callbacks:
+                    logging.debug(f"2.2 last_game_state: {self.last_game_state}")
+            logging.debug(f"pre3: are we performing callbacks? {perform_callbacks}")
+            if perform_callbacks or self.game_is_ready:
+                logging.warning("perform_callbacks = False but I am performing them anyway because game is ready, so we won't get any new updates!")
+                logging.debug("3 we are performing callbacks")
                 if self.last_error is not None:
+                    logging.debug("3.1 there was some error last time")
                     self.action_queue.clear()
                     new_action = self.error_callback(self.last_error)
                     self.add_action_to_queue(new_action)
                 elif self.in_game:
-                    if len(self.action_queue) == 0 and perform_callbacks:
+                    logging.debug("3.2 we are in game")
+                    logging.debug(f"3.2.1 self.action_queue == {self.action_queue}")
+                    if len(self.action_queue) == 0:
+                        logging.debug("3.3 action queue is empty, so creating and sending an action!")
                         new_action = self.state_change_callback(self.last_game_state)
+                        logging.debug(f"3.4 new action is {new_action}")
                         self.add_action_to_queue(new_action)
                 elif self.stop_after_run:
                     self.clear_actions()
@@ -207,8 +226,10 @@ class Coordinator:
         """
         self.clear_actions()
         while not self.game_is_ready:
+            print("game not ready, game not ready",  file=sys.stderr)
             self.receive_game_state_update(block=True, perform_callbacks=False)
         if not self.in_game:
+            print("not in game, starting",  file=sys.stderr)
             StartGameAction(player_class, ascension_level, seed).execute(self)
             self.receive_game_state_update(block=True)
         while self.in_game:
