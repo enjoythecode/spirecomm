@@ -3,7 +3,9 @@ import datetime
 import sys
 import logging
 
-logging.basicConfig(filename="example.log", encoding="utf-8", level=logging.DEBUG)
+from spirecomm.logconfig import debug_logger
+
+logging.basicConfig(filename="spirecomm.default.log", encoding="utf-8", level=logging.DEBUG)
 
 from spirecomm.communication.coordinator import Coordinator
 from spirecomm.ai.agent import SimpleAgent
@@ -11,7 +13,6 @@ from spirecomm.spire.character import PlayerClass
 
 ### https://stackoverflow.com/a/21919644/6022781
 import signal
-import logging
 
 class DelayedKeyboardInterrupt:
 
@@ -21,7 +22,7 @@ class DelayedKeyboardInterrupt:
                 
     def handler(self, sig, frame):
         self.signal_received = (sig, frame)
-        logging.debug('SIGINT received. Delaying KeyboardInterrupt.')
+        debug_logger.debug('SIGINT received. Delaying KeyboardInterrupt.')
     
     def __exit__(self, type, value, traceback):
         signal.signal(signal.SIGINT, self.old_handler)
@@ -32,7 +33,7 @@ class DelayedKeyboardInterrupt:
 
 if __name__ == "__main__":
     with DelayedKeyboardInterrupt():
-        logging.info("initializing agent")
+        debug_logger.info("initializing agent")
         agent = SimpleAgent()
         coordinator = Coordinator()
         coordinator.signal_ready()
@@ -40,6 +41,12 @@ if __name__ == "__main__":
         coordinator.register_state_change_callback(agent.get_next_action_in_game)
         coordinator.register_out_of_game_callback(agent.get_next_action_out_of_game)
 
+        # Play Ironchad forever
+        while True:
+            chosen_class = PlayerClass.DEFECT
+            agent.change_class(chosen_class)
+            result = coordinator.play_one_game(chosen_class)
+        
         # Play games forever, cycling through the various classes
         for chosen_class in itertools.cycle(PlayerClass):
             agent.change_class(chosen_class)

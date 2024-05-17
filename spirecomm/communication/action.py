@@ -327,3 +327,13 @@ class StateAction(Action):
     def __init__(self, requires_game_ready=False):
         super().__init__(command="state", requires_game_ready=False)
 
+class WaitAction(Action):
+    """An action to make the game wait the specified number of frames"""
+    
+    def __init__(self, frames = 1):
+        super().__init__("wait")
+        self.frames = frames
+
+    def execute(self, coordinator):
+        arguments = [self.command, str(self.frames)]
+        coordinator.send_message(" ".join(arguments))

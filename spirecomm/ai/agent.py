@@ -1,6 +1,8 @@
 import time
 import random
 
+import logging
+
 from spirecomm.spire.game import Game
 from spirecomm.spire.character import Intent, PlayerClass
 import spirecomm.spire.card
@@ -34,7 +36,8 @@ class SimpleAgent:
             self.priorities = random.choice(list(PlayerClass))
 
     def handle_error(self, error):
-        raise Exception(error)
+        logging.exception(error)
+        return WaitAction(frames = 1000)
 
     def get_next_action_in_game(self, game_state):
         self.game = game_state
@@ -53,6 +56,9 @@ class SimpleAgent:
             return EndTurnAction()
         if self.game.cancel_available:
             return CancelAction()
+
+        # if nothing is available, we want to send "wait 1000" to make the game wait and so we can debug.
+        return WaitAction(frames = 1000)
 
     def get_next_action_out_of_game(self):
         return StartGameAction(self.chosen_class)
